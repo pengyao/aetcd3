@@ -3,6 +3,7 @@ import functools
 import inspect
 import tempfile
 import warnings
+import os
 
 import aiofiles
 
@@ -149,6 +150,7 @@ class Etcd3Client:
         self.ca_cert = ca_cert
         self.cert_key = cert_key
         self.cert_cert = cert_cert
+        self.ca_bundle = None
         self.user = user
         self.password = password
 
@@ -176,13 +178,13 @@ class Etcd3Client:
             self.channel = Channel(host=self.host, port=self.port, ssl=True)
 
             if all(cert_params):
-                ca_bundle = tempfile.mktemp()
-                async with aiofiles.open(ca_bundle, 'w') as cert_bundle:
+                self.ca_bundle = tempfile.mkstemp()[1]
+                async with aiofiles.open(self.ca_bundle, 'w') as cert_bundle:
                     for cf_path in (self.cert_cert, self.ca_cert):
                         async with aiofiles.open(cf_path) as cf:
                             await cert_bundle.write(await cf.read())
                     await cert_bundle.flush()
-                    self.channel._ssl.load_cert_chain(ca_bundle, keyfile=self.cert_key)
+                    self.channel._ssl.load_cert_chain(self.ca_bundle, keyfile=self.cert_key)
             else:
                 self.channel._ssl.load_cert_chain(self.ca_cert, keyfile=self.cert_key)
 
@@ -215,6 +217,8 @@ class Etcd3Client:
             self.watcher.close()
             self.channel.close()
             self._init_channel_attrs()
+        if self.ca_bundle and os.path.exists(self.ca_bundle):
+            os.remove(self.ca_bundle)
 
     async def __aenter__(self):
         await self.open()
