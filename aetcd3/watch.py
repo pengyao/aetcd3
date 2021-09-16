@@ -117,7 +117,7 @@ class Watcher(object):
 
                 stream.end()
 
-        self._sender_task = asyncio.get_running_loop().create_task(
+        self._sender_task = asyncio.get_event_loop().create_task(
             sender_task(self.timeout, self._metadata, self._run_receiver),
         )
 
@@ -138,7 +138,7 @@ class Watcher(object):
             except grpclib.exceptions.StreamTerminatedError as err:
                 await self._handle_steam_termination(err)
 
-        self._receiver_task = asyncio.get_running_loop().create_task(receiver_task())
+        self._receiver_task = asyncio.get_event_loop().create_task(receiver_task())
 
     async def _handle_steam_termination(self, err):
         async with self._lock:
